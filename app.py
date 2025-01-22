@@ -2,48 +2,29 @@ import dash
 from dash import dcc, html, Input, Output
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
 # 📌 Загрузка данных
-df = pd.read_csv("checkups_data.csv", parse_dates=["date"])
-
-# 📌 Функция для загрузки данных из CSV
-def load_data():
-    """
-    Функция загружает CSV-файл и преобразует столбец даты в формат datetime.
-    """
-    df = pd.read_csv("checkups_data.csv", parse_dates=["date"])  # Загружаем CSV-файл
-    return df
-
-# Загружаем данные при запуске
-df_checkups = load_data()
+df_checkups = pd.read_csv("checkups_data.csv", parse_dates=["date"])
 
 # Создаём Dash-приложение
 app = dash.Dash(__name__)
-server = app.server  # Для деплоя
+server = app.server
 
-# 📌 Интерфейс дашборда
-app.layout = html.Div([
-    html.H1("Аналитика медицинских чек-апов", style={'textAlign': 'center'}),
-
-    # 🔹 Фильтры: выбор клиник и даты
+# 📌 Общие фильтры для всех дашбордов
+filters = html.Div([
     html.Div([
         dcc.Dropdown(
             id='clinic-filter',
             options=[{"label": c, "value": c} for c in df_checkups["clinic"].unique()],
-            value=list(df_checkups["clinic"].unique()),  # Значение по умолчанию — все клиники
-            multi=True,  # Позволяет выбирать несколько клиник
+            value=list(df_checkups["clinic"].unique()),
+            multi=True,
             clearable=False,
             style={
                 'width': '280px',
                 'height': '42px',
                 'font-size': '16px',
-                'text-align': 'center',
-                'border': '1px solid #ccc',
-                'border-radius': '5px',
-                'box-shadow': 'none',
-                'outline': 'none',
-                'box-sizing': 'border-box',
-                'vertical-align': 'middle'
             }
         ),
         dcc.DatePickerRange(
@@ -51,115 +32,103 @@ app.layout = html.Div([
             start_date=df_checkups["date"].min(),
             end_date=df_checkups["date"].max(),
             display_format='YYYY-MM-DD',
-            style={
-                'height': '42px',
-                'font-size': '16px',
-                'border': '1px solid #ccc',
-                'border-radius': '5px',
-                'padding': '5px',
-                'box-shadow': 'none',
-                'outline': 'none',
-                'box-sizing': 'border-box',
-                'vertical-align': 'middle'
-            }
+            style={'width': '400px'}
         )
-    ], style={'display': 'flex', 'gap': '10px', 'justify-content': 'center', 'align-items': 'center'}),
+    ], style={'display': 'flex', 'gap': '20px', 'justify-content': 'center'})
+], style={'margin': '20px'})
 
-    # 🔹 Блок сравнения количества чек-апов за текущую и прошлую неделю
+# 📌 Интерфейс дашборда
+app.layout = html.Div([
+    html.H1("Аналитика медицинских чек-апов", style={'textAlign': 'center'}),
+    filters,
+    
+    # Первый ряд дашбордов
     html.Div([
-        html.H3("Сравнение чек-апов за текущую и прошлую неделю", style={'textAlign': 'center'}),
+        # Дашборд 1: Общая статистика
         html.Div([
-            html.Div([
-                html.H4("Текущая неделя"),
-                html.P(id="current-week-checkups", style={"fontSize": "20px", "fontWeight": "bold"})
-            ], style={"width": "50%", "textAlign": "center"}),
-
-            html.Div([
-                html.H4("Прошлая неделя"),
-                html.P(id="previous-week-checkups", style={"fontSize": "20px", "fontWeight": "bold"})
-            ], style={"width": "50%", "textAlign": "center"})
-        ], style={"display": "flex", "justifyContent": "center"}),
-
-        html.P(id="percentage-change", style={"textAlign": "center", "fontSize": "18px", "marginTop": "10px"})
-    ], style={"marginBottom": "20px"}),
-
-    # 🔹 Блок горячей карты чек-апов
+            html.H3("Общая статистика", style={'textAlign': 'center'}),
+            html.Div(id='total-stats')
+        ], style={'width': '48%', 'margin': '1%', 'padding': '20px', 'boxShadow': '0px 0px 10px rgba(0,0,0,0.1)'}),
+        
+        # Дашборд 2: График тренда
+        html.Div([
+            html.H3("Тренд чек-апов", style={'textAlign': 'center'}),
+            dcc.Graph(id='trend-graph')
+        ], style={'width': '48%', 'margin': '1%', 'padding': '20px', 'boxShadow': '0px 0px 10px rgba(0,0,0,0.1)'})
+    ], style={'display': 'flex', 'margin': '20px 0'}),
+    
+    # Второй ряд дашбордов
     html.Div([
-        html.H3("Горячая карта чек-апов", style={'textAlign': 'center'}),
-        dcc.Graph(id="heatmap-checkups")
-    ], style={"marginBottom": "20px"}),
-
-    # 🔹 Среднее количество чек-апов за день
+        # Дашборд 3: Тепловая карта
+        html.Div([
+            html.H3("Тепловая карта загруженности", style={'textAlign': 'center'}),
+            dcc.Graph(id='heatmap')
+        ], style={'width': '48%', 'margin': '1%', 'padding': '20px', 'boxShadow': '0px 0px 10px rgba(0,0,0,0.1)'}),
+        
+        # Дашборд 4: Статистика по врачам
+        html.Div([
+            html.H3("Статистика по врачам", style={'textAlign': 'center'}),
+            dcc.Graph(id='doctors-stats')
+        ], style={'width': '48%', 'margin': '1%', 'padding': '20px', 'boxShadow': '0px 0px 10px rgba(0,0,0,0.1)'})
+    ], style={'display': 'flex', 'margin': '20px 0'}),
+    
+    # Третий ряд дашбордов
     html.Div([
-        html.H3("Среднее число чек-апов в день", style={"textAlign": "center"}),
-        html.P(id="avg-checkups", style={"fontSize": "20px", "textAlign": "center", "fontWeight": "bold"})
-    ]),
-
-    # 🔹 График динамики чек-апов
-    dcc.Graph(id='checkup-trend')
+        # Дашборд 5: Сравнение периодов
+        html.Div([
+            html.H3("Сравнение периодов", style={'textAlign': 'center'}),
+            dcc.Graph(id='period-comparison')
+        ], style={'width': '48%', 'margin': '1%', 'padding': '20px', 'boxShadow': '0px 0px 10px rgba(0,0,0,0.1)'}),
+        
+        # Дашборд 6: Дополнительная аналитика
+        html.Div([
+            html.H3("Дополнительная аналитика", style={'textAlign': 'center'}),
+            dcc.Graph(id='additional-analytics')
+        ], style={'width': '48%', 'margin': '1%', 'padding': '20px', 'boxShadow': '0px 0px 10px rgba(0,0,0,0.1)'})
+    ], style={'display': 'flex', 'margin': '20px 0'})
 ])
 
-# 📌 Callback для обновления графика
+# Callback для общей статистики
 @app.callback(
-    Output("checkup-trend", "figure"),
-    [Input("clinic-filter", "value"), Input("date-filter", "start_date"), Input("date-filter", "end_date")]
+    Output('total-stats', 'children'),
+    [Input('clinic-filter', 'value'),
+     Input('date-filter', 'start_date'),
+     Input('date-filter', 'end_date')]
 )
-def update_graph(selected_clinics, start_date, end_date):
-    """
-    Функция обновляет график на основе выбранных клиник и дат.
-    """
-    df_checkups = load_data()
-
+def update_total_stats(selected_clinics, start_date, end_date):
     df_filtered = df_checkups[
         (df_checkups["clinic"].isin(selected_clinics)) &
         (df_checkups["date"] >= start_date) &
         (df_checkups["date"] <= end_date)
     ]
+    
+    total_checkups = df_filtered["checkups"].sum()
+    avg_daily = df_filtered.groupby("date")["checkups"].sum().mean()
+    
+    return html.Div([
+        html.P(f"Всего чек-апов: {total_checkups}"),
+        html.P(f"Среднее в день: {avg_daily:.1f}")
+    ])
 
-    df_filtered = df_filtered[df_filtered["date"].dt.dayofweek != 6]  # Удаляем воскресенья
-
-    data = []
-    for clinic in selected_clinics:
-        df_clinic = df_filtered[df_filtered["clinic"] == clinic]
-        data.append({
-            "x": df_clinic["date"],
-            "y": df_clinic["checkups"],
-            "type": "line",
-            "name": clinic
-        })
-
-    figure = {
-        "data": data,
-        "layout": {
-            "title": "Динамика медицинских чек-апов",
-            "xaxis": {"tickformat": "%Y-%m-%d", "tickangle": -45},
-            "yaxis": {"title": "Чек-апы"}
-        }
-    }
-    return figure
-
-# 📌 Callback для расчета среднего количества чек-апов (без учета воскресений)
+# Callback для графика тренда
 @app.callback(
-    Output("avg-checkups", "children"),
-    [Input("clinic-filter", "value"), Input("date-filter", "start_date"), Input("date-filter", "end_date")]
+    Output('trend-graph', 'figure'),
+    [Input('clinic-filter', 'value'),
+     Input('date-filter', 'start_date'),
+     Input('date-filter', 'end_date')]
 )
-def update_avg_checkups(selected_clinics, start_date, end_date):
-    df_checkups = load_data()
-
+def update_trend(selected_clinics, start_date, end_date):
     df_filtered = df_checkups[
-        (df_checkups["clinic"].isin(selected_clinics)) & 
-        (df_checkups["date"] >= start_date) & 
+        (df_checkups["clinic"].isin(selected_clinics)) &
+        (df_checkups["date"] >= start_date) &
         (df_checkups["date"] <= end_date)
     ]
+    
+    fig = px.line(df_filtered, x="date", y="checkups", color="clinic")
+    return fig
 
-    df_filtered = df_filtered[df_filtered["date"].dt.dayofweek != 6]  # Убираем воскресенья
+# Здесь нужно добавить остальные callbacks для других графиков
+# Я могу их реализовать после того, как вы уточните требования к каждому дашборду
 
-    if df_filtered.empty:
-        return "Нет данных"
-
-    avg_checkups = df_filtered["checkups"].sum() / df_filtered["date"].nunique()
-    return f"{avg_checkups:.2f} чек-апов в день"
-
-# 📌 Запуск приложения
 if __name__ == '__main__':
     app.run_server(debug=True)
