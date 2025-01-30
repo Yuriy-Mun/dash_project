@@ -4,9 +4,21 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import numpy as np
 
-# 📌 Загрузка данных
-df_checkups = pd.read_csv("checkups_data.csv", parse_dates=["date"])
+# Загрузка данных с обработкой ошибок
+try:
+    df_checkups = pd.read_csv("data/Doctor_in_Adult_check-ups_daily.csv", parse_dates=["date"])
+    df_therapist = pd.read_csv("data/Therapist_in_Adult_check-ups_daily.csv", parse_dates=["date"])
+    
+    # Объединяем данные из обеих клиник
+    df_checkups = pd.concat([
+        df_checkups.assign(clinic='deFactum'),
+        df_therapist.assign(clinic='deFactum_Kids')
+    ]).reset_index(drop=True)
+except Exception as e:
+    print(f"Ошибка при загрузке данных: {e}")
+    df_checkups = pd.DataFrame(columns=["date", "checkups", "clinic"])
 
 # Создаём Dash-приложение
 app = dash.Dash(__name__)
@@ -90,19 +102,29 @@ app.layout = html.Div([
 
 # Функция для получения номера недели
 def get_week_number(date):
-    return date.isocalendar()[1]
+    try:
+        return date.isocalendar()[1]
+    except:
+        return None
 
 # Функция для получения начала и конца недели
 def get_week_dates(date):
-    start = date - timedelta(days=date.weekday())
-    end = start + timedelta(days=6)
-    return start, end
+    try:
+        start = date - timedelta(days=date.weekday())
+        end = start + timedelta(days=6)
+        return start, end
+    except:
+        today = datetime.now().date()
+        return today, today
 
 # Функция для расчета процентного изменения
 def calculate_percentage_change(current, previous):
-    if previous == 0:
+    try:
+        if previous == 0:
+            return 0
+        return ((current - previous) / previous) * 100
+    except:
         return 0
-    return ((current - previous) / previous) * 100
 
 # Обновленный callback для общей статистики
 @app.callback(
@@ -112,65 +134,75 @@ def calculate_percentage_change(current, previous):
      Input('date-filter', 'end_date')]
 )
 def update_total_stats(selected_clinics, start_date, end_date):
-    # Получаем текущую дату
-    today = datetime.now().date()
-    
-    # Получаем даты для текущей, прошлой и позапрошлой недель
-    current_week_start, current_week_end = get_week_dates(today)
-    last_week_start = current_week_start - timedelta(days=7)
-    last_week_end = current_week_end - timedelta(days=7)
-    prev_week_start = last_week_start - timedelta(days=7)
-    prev_week_end = last_week_end - timedelta(days=7)
-    
-    # Фильтруем данные
-    df_filtered = df_checkups[df_checkups["clinic"].isin(selected_clinics)]
-    
-    # Получаем количество чек-апов по неделям
-    current_week_checkups = df_filtered[
-        (df_filtered["date"] >= current_week_start) & 
-        (df_filtered["date"] <= today)
-    ]["checkups"].sum()
-    
-    last_week_checkups = df_filtered[
-        (df_filtered["date"] >= last_week_start) & 
-        (df_filtered["date"] <= last_week_end)
-    ]["checkups"].sum()
-    
-    prev_week_checkups = df_filtered[
-        (df_filtered["date"] >= prev_week_start) & 
-        (df_filtered["date"] <= prev_week_end)
-    ]["checkups"].sum()
-    
-    # Рассчитываем процент изменения
-    percentage_change = calculate_percentage_change(last_week_checkups, prev_week_checkups)
-    
-    # Получаем общее количество чек-апов за выбранный период
-    total_checkups = df_filtered[
-        (df_filtered["date"] >= start_date) & 
-        (df_filtered["date"] <= end_date)
-    ]["checkups"].sum()
-    
-    return html.Div([
-        html.Div([
-            html.H4("Текущая неделя"),
-            html.H2(f"{current_week_checkups}")
-        ], style={'textAlign': 'center', 'margin': '10px'}),
+    try:
+        # Получаем текущую дату
+        today = datetime.now().date()
         
-        html.Div([
-            html.H4("Прошлая неделя"),
-            html.H2(f"{last_week_checkups}")
-        ], style={'textAlign': 'center', 'margin': '10px'}),
+        # Преобразуем строковые даты в datetime
+        if isinstance(start_date, str):
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        if isinstance(end_date, str):
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
         
-        html.Div([
-            html.H4("Изменение"),
-            html.H2(f"{percentage_change:.2f}%")
-        ], style={'textAlign': 'center', 'margin': '10px'}),
+        # Получаем даты для текущей, прошлой и позапрошлой недель
+        current_week_start, current_week_end = get_week_dates(today)
+        last_week_start = current_week_start - timedelta(days=7)
+        last_week_end = current_week_end - timedelta(days=7)
+        prev_week_start = last_week_start - timedelta(days=7)
+        prev_week_end = last_week_end - timedelta(days=7)
         
-        html.Div([
-            html.H4("Всего за период"),
-            html.H2(f"{total_checkups}")
-        ], style={'textAlign': 'center', 'margin': '10px'})
-    ], style={'display': 'flex', 'justifyContent': 'space-around'})
+        # Фильтруем данные
+        df_filtered = df_checkups[df_checkups["clinic"].isin(selected_clinics)]
+        
+        # Получаем количество чек-апов по неделям
+        current_week_checkups = df_filtered[
+            (df_filtered["date"].dt.date >= current_week_start) & 
+            (df_filtered["date"].dt.date <= today)
+        ]["checkups"].sum()
+        
+        last_week_checkups = df_filtered[
+            (df_filtered["date"].dt.date >= last_week_start) & 
+            (df_filtered["date"].dt.date <= last_week_end)
+        ]["checkups"].sum()
+        
+        prev_week_checkups = df_filtered[
+            (df_filtered["date"].dt.date >= prev_week_start) & 
+            (df_filtered["date"].dt.date <= prev_week_end)
+        ]["checkups"].sum()
+        
+        # Рассчитываем процент изменения
+        percentage_change = calculate_percentage_change(last_week_checkups, prev_week_checkups)
+        
+        # Получаем общее количество чек-апов за выбранный период
+        total_checkups = df_filtered[
+            (df_filtered["date"].dt.date >= start_date) & 
+            (df_filtered["date"].dt.date <= end_date)
+        ]["checkups"].sum()
+        
+        return html.Div([
+            html.Div([
+                html.H4("Текущая неделя"),
+                html.H2(f"{current_week_checkups}")
+            ], style={'textAlign': 'center', 'margin': '10px'}),
+            
+            html.Div([
+                html.H4("Прошлая неделя"),
+                html.H2(f"{last_week_checkups}")
+            ], style={'textAlign': 'center', 'margin': '10px'}),
+            
+            html.Div([
+                html.H4("Изменение"),
+                html.H2(f"{percentage_change:.2f}%")
+            ], style={'textAlign': 'center', 'margin': '10px'}),
+            
+            html.Div([
+                html.H4("Всего за период"),
+                html.H2(f"{total_checkups}")
+            ], style={'textAlign': 'center', 'margin': '10px'})
+        ], style={'display': 'flex', 'justifyContent': 'space-around'})
+    except Exception as e:
+        print(f"Ошибка в update_total_stats: {e}")
+        return html.Div("Ошибка при обновлении статистики")
 
 # Callback для графика тренда
 @app.callback(
