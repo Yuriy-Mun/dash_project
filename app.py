@@ -8,17 +8,20 @@ import numpy as np
 
 # Загрузка данных с обработкой ошибок
 try:
-    df_checkups = pd.read_csv("data/Doctor_in_Adult_check-ups_daily.csv", parse_dates=["date"])
+    # Загружаем основную таблицу с клиниками
+    df_main = pd.read_csv("data/Main_Table_Clinics.csv", parse_dates=["date"])
+    
+    # Загружаем данные по врачам и терапевтам
+    df_doctors = pd.read_csv("data/Doctor_in_Adult_check-ups_daily.csv", parse_dates=["date"])
     df_therapist = pd.read_csv("data/Therapist_in_Adult_check-ups_daily.csv", parse_dates=["date"])
     
-    # Объединяем данные из обеих клиник
-    df_checkups = pd.concat([
-        df_checkups.assign(clinic='deFactum'),
-        df_therapist.assign(clinic='deFactum_Kids')
-    ]).reset_index(drop=True)
+    # Используем df_main для основных данных
+    df_checkups = df_main.copy()
+    
 except Exception as e:
     print(f"Ошибка при загрузке данных: {e}")
     df_checkups = pd.DataFrame(columns=["date", "checkups", "clinic"])
+    df_main = pd.DataFrame(columns=["date", "checkups", "clinic"])
 
 # Создаём Dash-приложение
 app = dash.Dash(__name__)
@@ -29,24 +32,43 @@ filters = html.Div([
     html.Div([
         dcc.Dropdown(
             id='clinic-filter',
-            options=[{"label": c, "value": c} for c in df_checkups["clinic"].unique()],
-            value=list(df_checkups["clinic"].unique()),
+            options=[
+                {"label": "deFactum", "value": "deFactum"},
+                {"label": "deFactum Kids", "value": "deFactum_Kids"}
+            ],
+            value=["deFactum", "deFactum_Kids"],  # По умолчанию выбраны обе клиники
             multi=True,
             clearable=False,
+            placeholder="Выберите клинику",
             style={
                 'width': '280px',
                 'height': '42px',
                 'font-size': '16px',
+                'background-color': 'white',
+                'border': 'none',
+                'border-radius': '4px',
             }
         ),
         dcc.DatePickerRange(
             id='date-filter',
             start_date=df_checkups["date"].min(),
             end_date=df_checkups["date"].max(),
-            display_format='YYYY-MM-DD',
-            style={'width': '400px'}
+            display_format='DD.MM.YYYY',
+            first_day_of_week=1,
+            style={
+                'width': '400px',
+                'background-color': 'white',
+                'border': 'none',
+                'border-radius': '4px',
+            }
         )
-    ], style={'display': 'flex', 'gap': '20px', 'justify-content': 'center'})
+    ], style={
+        'display': 'flex', 
+        'gap': '20px', 
+        'justify-content': 'center',
+        'align-items': 'center',
+        'padding': '10px',
+    })
 ], style={'margin': '20px'})
 
 # 📌 Интерфейс дашборда
