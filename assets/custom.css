@@ -1,0 +1,27 @@
+/* Стили для календаря */
+.DateInput_input {
+    font-family: Arial;
+    font-size: 14px;
+}
+
+/* Стили для выбранных дат */
+.CalendarDay__selected, 
+.CalendarDay__selected:hover {
+    background: #00449e !important;
+    border: 1px solid #00449e !important;
+    color: #fff !important;
+}
+
+/* Стили для диапазона дат */
+.CalendarDay__selected_span {
+    background: #cce5ff !important;
+    border: 1px solid #cce5ff !important;
+    color: #484848 !important;
+}
+
+/* Стили для наведения на даты */
+.CalendarDay:hover {
+    background: #e6e6e6 !important;
+    border: 1px solid #e6e6e6 !important;
+    color: inherit !important;
+} 

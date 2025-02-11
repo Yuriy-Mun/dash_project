@@ -1,0 +1,46 @@
+/* Import Tailwind CSS */
+@import 'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css';
+
+/* Custom styles for Dash components */
+.dash-dropdown .Select-control {
+    @apply bg-white border border-gray-300 rounded-md shadow-sm;
+    height: 38px !important;
+    line-height: 38px !important;
+}
+
+.dash-dropdown {
+    height: 38px !important;
+}
+
+.DateInput_input {
+    @apply bg-white border border-gray-300 rounded-md shadow-sm;
+    height: 38px !important;
+    line-height: 38px !important;
+    padding: 0 8px !important;
+}
+
+.DateRangePickerInput {
+    height: 38px !important;
+}
+
+.DateRangePickerInput_arrow {
+    padding: 0 8px !important;
+}
+
+/* Custom scrollbar for tables */
+::-webkit-scrollbar {
+    @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded;
+}
+
+/* Graph container styles */
+.js-plotly-plot {
+    @apply bg-white rounded-lg shadow-md;
+}

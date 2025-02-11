@@ -1,5 +1,7 @@
-dash
-pandas
-plotly
-gunicorn
+dash==2.14.2
 dash-bootstrap-components>=1.4.1
+pandas==2.1.4
+plotly==5.18.0
+gunicorn==21.2.0
+numpy==1.26.2
+python-dateutil==2.8.2
